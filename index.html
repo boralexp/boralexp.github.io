@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Детский научно технический клуб "Вольт" - Запись на робототехнику </title>
+    <title>Детский научно-технический клуб "Вольт" - Запись на робототехнику</title>
     
-    <!-- ===== Firebase SDK ===== -->
+    <!-- ===== Firebase SDK (правильная версия) ===== -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     
@@ -235,6 +235,37 @@
             font-size: 13px;
             color: white;
             white-space: nowrap;
+        }
+
+        /* ===== ДИАГНОСТИКА ===== */
+        .diagnostic-box {
+            background: rgba(255, 200, 0, 0.05);
+            border: 1px solid rgba(255, 200, 0, 0.15);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .diagnostic-box.active {
+            display: block;
+        }
+
+        .diagnostic-box .ok {
+            color: #4ade80;
+        }
+        .diagnostic-box .error {
+            color: #f87171;
+        }
+        .diagnostic-box .info {
+            color: #60a5fa;
+        }
+        .diagnostic-box .warning {
+            color: #fbbf24;
         }
 
         /* ===== ИНФО ДЛЯ РОДИТЕЛЕЙ ===== */
@@ -785,10 +816,14 @@
             <button class="admin-toggle-btn" id="adminToggleBtn">🔐 Админ-панель</button>
         </div>
 
+        <!-- ===== ДИАГНОСТИКА ===== -->
+        <div class="diagnostic-box" id="diagnosticBox">
+            <div id="diagnosticContent"></div>
+        </div>
+
         <!-- ===== АДРЕС ===== -->
         <div class="address-block">
             <h2>📍 Наш адрес: Деповская, 37, второй этаж, кабинет №7</h2>
-            
         </div>
 
         <!-- ===== РАСПИСАНИЕ ===== -->
@@ -901,169 +936,226 @@
 
     <script>
         // ============================================================
-        //  1. НАСТРОЙКИ FIREBASE
+        //  ⚠️ ВСТАВЬ СВОИ ДАННЫЕ ИЗ FIREBASE ⚠️
         // ============================================================
-        
-   // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCZcyMqCXoLhxxsrqjpI-SKaLJJBh8FWTs",
-  authDomain: "volt-club-7aac5.firebaseapp.com",
-  databaseURL: "https://volt-club-7aac5-default-rtdb.firebaseio.com",
-  projectId: "volt-club-7aac5",
-  storageBucket: "volt-club-7aac5.firebasestorage.app",
-  messagingSenderId: "326327519701",
-  appId: "1:326327519701:web:756cee3dc8a0446684955c"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+        const firebaseConfig = {
+            apiKey: "AIzaSyCZcyMqCXoLhxxsrqjpI-SKaLJJBh8FWTs",
+            authDomain: "volt-club-7aac5.firebaseapp.com",
+            databaseURL: "https://volt-club-7aac5-default-rtdb.firebaseio.com",
+            projectId: "volt-club-7aac5",
+            storageBucket: "volt-club-7aac5.firebasestorage.app",
+            messagingSenderId: "326327519701",
+            appId: "1:326327519701:web:756cee3dc8a0446684955c"
+        };
 
         // ============================================================
-        //  2. НАСТРОЙКИ reCAPTCHA
+        //  ⚠️ ВСТАВЬ СВОЙ SITE KEY ИЗ reCAPTCHA ⚠️
         // ============================================================
-        
-        const RECAPTCHA_SITE_KEY = '6LeDemoKey123456789';
-        let recaptchaWidgetId = null;
+        const RECAPTCHA_SITE_KEY = '6LdSkk8tAAAAAPaNTncBitJzBqR0zD96GOpB-Z_9';
 
         // ============================================================
-        //  3. КОНСТАНТЫ
+        //  КОНСТАНТЫ
         // ============================================================
-        
         const GROUP_SIZE = 4;
-        const TIME_SLOTS = ['10:00', '11:00', '14:00', '15:00'];
+        const TIME_SLOTS = ['10:00', '11:00', '15:00', '16:00'];
         const DB_PATH = 'volt_schedule';
-        const ADMIN_PASSWORD = 'volt2026'; // ⚠️ СМЕНИ ПАРОЛЬ!
+        const ADMIN_PASSWORD = 'volt2026';
 
         // ============================================================
-        //  4. РАБОТА С FIREBASE
+        //  ДИАГНОСТИКА
+        // ============================================================
+        let diagnosticLog = [];
+
+        function diag(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            diagnosticLog.push({ message, type, timestamp });
+            updateDiagnostic();
+            console.log(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
+        }
+
+        function updateDiagnostic() {
+            const box = document.getElementById('diagnosticBox');
+            const content = document.getElementById('diagnosticContent');
+            
+            if (diagnosticLog.length > 0) {
+                box.classList.add('active');
+                content.innerHTML = diagnosticLog.map(d => 
+                    `<div class="${d.type}">${d.timestamp} — ${d.message}</div>`
+                ).join('');
+            } else {
+                box.classList.remove('active');
+            }
+        }
+
+        // ============================================================
+        //  ИНИЦИАЛИЗАЦИЯ FIREBASE
+        // ============================================================
+        
+        diag('🔧 Начинаем инициализацию Firebase...', 'info');
+
+        // Проверка, что все ключи заполнены
+        const configKeys = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+        let hasEmptyKeys = false;
+        configKeys.forEach(key => {
+            if (!firebaseConfig[key] || firebaseConfig[key] === `ВАШ_${key.toUpperCase()}`) {
+                diag(`❌ Не заполнен ключ: ${key}`, 'error');
+                hasEmptyKeys = true;
+            }
+        });
+
+        if (hasEmptyKeys) {
+            diag('❌ Заполните все ключи Firebase в коде!', 'error');
+            document.getElementById('scheduleGrid').innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #f87171;">
+                    ❌ Ошибка: не заполнены ключи Firebase.<br>
+                    Откройте консоль (F12) для подробностей.
+                </div>
+            `;
+        } else {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                diag('✅ Firebase инициализирован успешно!', 'ok');
+            } catch (error) {
+                diag(`❌ Ошибка инициализации Firebase: ${error.message}`, 'error');
+                document.getElementById('scheduleGrid').innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #f87171;">
+                        ❌ Ошибка Firebase: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        const database = firebase.database ? firebase.database() : null;
+
+        // ============================================================
+        //  РАБОТА С FIREBASE
         // ============================================================
 
         async function getDataFromFirebase() {
+            if (!database) {
+                throw new Error('Firebase не инициализирован');
+            }
+            
+            diag('📥 Загрузка данных из Firebase...', 'info');
+            
             try {
                 const snapshot = await database.ref(DB_PATH).once('value');
+                diag(`✅ Данные загружены: ${snapshot.exists() ? 'есть данные' : 'пусто'}`, 'ok');
+                
                 const data = snapshot.val();
                 if (data) {
+                    diag(`📊 Загружено: ${Object.keys(data).length} слотов`, 'info');
                     return data;
                 } else {
+                    diag('📭 Данных нет, создаём пустую структуру...', 'warning');
                     const init = {};
                     TIME_SLOTS.forEach(t => { init[t] = []; });
                     await database.ref(DB_PATH).set(init);
+                    diag('✅ Создана пустая структура данных', 'ok');
                     return init;
                 }
             } catch (error) {
-                console.error('Ошибка загрузки из Firebase:', error);
+                diag(`❌ Ошибка загрузки: ${error.message}`, 'error');
                 throw error;
             }
         }
 
         async function saveDataToFirebase(data) {
+            if (!database) {
+                throw new Error('Firebase не инициализирован');
+            }
+            
             try {
                 await database.ref(DB_PATH).set(data);
+                diag('✅ Данные сохранены в Firebase', 'ok');
                 return true;
             } catch (error) {
-                console.error('Ошибка сохранения в Firebase:', error);
-                throw error;
-            }
-        }
-
-        async function addRegistrationToFirebase(time, registrationData) {
-            try {
-                const data = await getDataFromFirebase();
-                const booked = data[time] || [];
-                if (booked.length >= GROUP_SIZE) {
-                    throw new Error('Нет свободных мест');
-                }
-                booked.push(registrationData);
-                data[time] = booked;
-                await saveDataToFirebase(data);
-                return data;
-            } catch (error) {
-                console.error('Ошибка добавления заявки:', error);
+                diag(`❌ Ошибка сохранения: ${error.message}`, 'error');
                 throw error;
             }
         }
 
         // ============================================================
-        //  5. АДМИН-ФУНКЦИИ
+        //  reCAPTCHA (ИСПРАВЛЕННАЯ ВЕРСИЯ)
         // ============================================================
 
-        async function deleteRegistration(time, index) {
-            try {
-                const data = await getDataFromFirebase();
-                if (!data[time] || !data[time][index]) {
-                    throw new Error('Заявка не найдена');
-                }
-                data[time].splice(index, 1);
-                await saveDataToFirebase(data);
-                return data;
-            } catch (error) {
-                console.error('Ошибка удаления:', error);
-                throw error;
-            }
-        }
-
-        async function clearSlot(time) {
-            try {
-                const data = await getDataFromFirebase();
-                if (!data[time]) {
-                    throw new Error('Время не найдено');
-                }
-                data[time] = [];
-                await saveDataToFirebase(data);
-                return data;
-            } catch (error) {
-                console.error('Ошибка очистки слота:', error);
-                throw error;
-            }
-        }
-
-        // ============================================================
-        //  6. reCAPTCHA
-        // ============================================================
+        let recaptchaWidgetId = null;
 
         function loadRecaptcha() {
+            if (!RECAPTCHA_SITE_KEY || RECAPTCHA_SITE_KEY === 'ВАШ_SITE_KEY') {
+                diag('❌ Не заполнен Site Key для reCAPTCHA', 'error');
+                return;
+            }
+
+            // Проверяем, что grecaptcha уже загружен
+            if (typeof grecaptcha === 'undefined' || !grecaptcha.render) {
+                diag('⏳ reCAPTCHA ещё не загружен, ждём...', 'warning');
+                // Попробуем ещё раз через 1 секунду
+                setTimeout(loadRecaptcha, 1000);
+                return;
+            }
+
+            diag('🔐 Загрузка reCAPTCHA...', 'info');
+            
             const container = document.getElementById('recaptcha-container');
             container.innerHTML = '';
             
-            recaptchaWidgetId = grecaptcha.render('recaptcha-container', {
-                sitekey: RECAPTCHA_SITE_KEY,
-                theme: 'dark',
-                size: 'normal',
-                callback: function(response) {
-                    document.getElementById('submitBtn').disabled = false;
-                },
-                'expired-callback': function() {
-                    document.getElementById('submitBtn').disabled = true;
-                    showMessage('⏳ Капча устарела, решите её заново.', 'info');
-                }
-            });
+            try {
+                recaptchaWidgetId = grecaptcha.render('recaptcha-container', {
+                    sitekey: RECAPTCHA_SITE_KEY,
+                    theme: 'dark',
+                    size: 'normal',
+                    callback: function(response) {
+                        diag('✅ reCAPTCHA решена', 'ok');
+                        document.getElementById('submitBtn').disabled = false;
+                    },
+                    'expired-callback': function() {
+                        diag('⏳ reCAPTCHA устарела', 'warning');
+                        document.getElementById('submitBtn').disabled = true;
+                    }
+                });
+                diag('✅ reCAPTCHA загружена, widget ID: ' + recaptchaWidgetId, 'ok');
+            } catch (error) {
+                diag(`❌ Ошибка reCAPTCHA: ${error.message}`, 'error');
+            }
         }
 
         function isCaptchaSolved() {
-            if (!recaptchaWidgetId) return false;
-            const response = grecaptcha.getResponse(recaptchaWidgetId);
-            return response && response.length > 0;
+            if (recaptchaWidgetId === null) return false;
+            try {
+                const response = grecaptcha.getResponse(recaptchaWidgetId);
+                return response && response.length > 0;
+            } catch (e) {
+                return false;
+            }
         }
 
         function resetCaptcha() {
-            if (recaptchaWidgetId) {
-                grecaptcha.reset(recaptchaWidgetId);
+            if (recaptchaWidgetId !== null) {
+                try {
+                    grecaptcha.reset(recaptchaWidgetId);
+                } catch (e) {
+                    console.warn('Ошибка сброса капчи:', e);
+                }
             }
             document.getElementById('submitBtn').disabled = true;
         }
 
         // ============================================================
-        //  7. ОТРИСОВКА РАСПИСАНИЯ
+        //  ОТРИСОВКА РАСПИСАНИЯ
         // ============================================================
 
         function renderSchedule(data) {
+            diag('🔄 Отрисовка расписания...', 'info');
+            
             const grid = document.getElementById('scheduleGrid');
             grid.innerHTML = '';
+
+            if (!data) {
+                diag('❌ Нет данных для отрисовки', 'error');
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #f87171;">❌ Нет данных</div>`;
+                return;
+            }
 
             TIME_SLOTS.forEach(time => {
                 const booked = data[time] || [];
@@ -1096,10 +1188,11 @@ const app = initializeApp(firebaseConfig);
             });
 
             updateTimeSelect(data);
+            diag('✅ Расписание отрисовано', 'ok');
         }
 
         // ============================================================
-        //  8. ОБНОВЛЕНИЕ SELECT
+        //  ОБНОВЛЕНИЕ SELECT
         // ============================================================
 
         function updateTimeSelect(data) {
@@ -1107,6 +1200,11 @@ const app = initializeApp(firebaseConfig);
             const currentValue = select.value;
 
             select.innerHTML = '<option value="">— выберите время —</option>';
+
+            if (!data) {
+                diag('❌ Нет данных для обновления select', 'error');
+                return;
+            }
 
             TIME_SLOTS.forEach(time => {
                 const booked = data[time] || [];
@@ -1129,7 +1227,180 @@ const app = initializeApp(firebaseConfig);
         }
 
         // ============================================================
-        //  9. ОТРИСОВКА АДМИН-ПАНЕЛИ
+        //  ОТПРАВКА НА ПОЧТУ (FormSpree)
+        // ============================================================
+
+        async function sendToEmail(formData) {
+            const FORM_SPREE_URL = 'https://formspree.io/f/xpznkqrl';
+            
+            const payload = {
+                time: formData.time,
+                childName: formData.childName,
+                class: formData.class,
+                parentName: formData.parentName,
+                phone: formData.phone,
+                _subject: `📩 Новая заявка в "Вольт" на ${formData.time}`
+            };
+
+            try {
+                const response = await fetch(FORM_SPREE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Ошибка HTTP: ${response.status}`);
+                }
+
+                diag('✅ Письмо отправлено на почту', 'ok');
+                return { success: true };
+            } catch (error) {
+                diag(`⚠️ Ошибка отправки письма: ${error.message}`, 'warning');
+                return { success: false, error: error.message };
+            }
+        }
+
+        // ============================================================
+        //  ОБРАБОТКА ФОРМЫ
+        // ============================================================
+
+        const form = document.getElementById('registrationForm');
+        const messageEl = document.getElementById('formMessage');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        submitBtn.disabled = true;
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            diag('📝 Попытка отправки формы...', 'info');
+
+            if (!isCaptchaSolved()) {
+                diag('❌ Капча не решена', 'error');
+                showMessage('❌ Пожалуйста, подтвердите, что вы не робот (решите капчу).', 'error');
+                return;
+            }
+
+            const time = document.getElementById('timeSelect').value;
+            const childName = document.getElementById('childName').value.trim();
+            const classVal = document.getElementById('class').value.trim();
+            const parentName = document.getElementById('parentName').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+
+            if (!time) {
+                diag('❌ Не выбрано время', 'error');
+                showMessage('Пожалуйста, выберите время занятия.', 'error');
+                return;
+            }
+
+            loadingOverlay.classList.add('active');
+            submitBtn.disabled = true;
+
+            try {
+                const registrationData = {
+                    childName,
+                    class: classVal,
+                    parentName,
+                    phone,
+                    timestamp: new Date().toISOString()
+                };
+
+                diag(`📝 Сохранение заявки на ${time}...`, 'info');
+
+                // Получаем актуальные данные
+                const data = await getDataFromFirebase();
+                const booked = data[time] || [];
+                
+                if (booked.length >= GROUP_SIZE) {
+                    throw new Error('Нет свободных мест');
+                }
+                
+                booked.push(registrationData);
+                data[time] = booked;
+                await saveDataToFirebase(data);
+
+                diag(`✅ Заявка сохранена в Firebase на ${time}`, 'ok');
+
+                // Отправляем на почту
+                const emailResult = await sendToEmail({
+                    time,
+                    childName,
+                    class: classVal,
+                    parentName,
+                    phone
+                });
+
+                if (!emailResult.success) {
+                    showMessage(`⚠️ Заявка сохранена, но письмо не отправлено. Свяжитесь с администратором.`, 'info');
+                } else {
+                    showMessage(`✅ Заявка на ${time} успешно отправлена!`, 'success');
+                }
+
+                renderSchedule(data);
+                
+                if (document.getElementById('adminContent').classList.contains('active')) {
+                    renderAdminPanel(data);
+                }
+
+                form.reset();
+                document.getElementById('timeSelect').value = '';
+                resetCaptcha();
+
+            } catch (error) {
+                diag(`❌ Ошибка: ${error.message}`, 'error');
+                showMessage(`❌ Ошибка: ${error.message || 'попробуйте ещё раз'}`, 'error');
+                resetCaptcha();
+            } finally {
+                loadingOverlay.classList.remove('active');
+                if (!isCaptchaSolved()) {
+                    submitBtn.disabled = true;
+                }
+            }
+        });
+
+        // ============================================================
+        //  АДМИН-ФУНКЦИИ
+        // ============================================================
+
+        async function deleteRegistration(time, index) {
+            try {
+                const data = await getDataFromFirebase();
+                if (!data[time] || !data[time][index]) {
+                    throw new Error('Заявка не найдена');
+                }
+                data[time].splice(index, 1);
+                await saveDataToFirebase(data);
+                diag(`🗑️ Заявка удалена на ${time}`, 'ok');
+                return data;
+            } catch (error) {
+                diag(`❌ Ошибка удаления: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function clearSlot(time) {
+            try {
+                const data = await getDataFromFirebase();
+                if (!data[time]) {
+                    throw new Error('Время не найдено');
+                }
+                data[time] = [];
+                await saveDataToFirebase(data);
+                diag(`🗑️ Слот ${time} очищен`, 'ok');
+                return data;
+            } catch (error) {
+                diag(`❌ Ошибка очистки: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // ============================================================
+        //  ОТРИСОВКА АДМИН-ПАНЕЛИ
         // ============================================================
 
         function renderAdminPanel(data) {
@@ -1185,7 +1456,6 @@ const app = initializeApp(firebaseConfig);
                 `;
             }
 
-            // Навешиваем обработчики на кнопки удаления
             document.querySelectorAll('.btn-delete-reg').forEach(btn => {
                 btn.addEventListener('click', async function() {
                     const time = this.dataset.time;
@@ -1203,7 +1473,6 @@ const app = initializeApp(firebaseConfig);
                 });
             });
 
-            // Навешиваем обработчики на кнопки очистки слота
             document.querySelectorAll('.btn-clear-slot').forEach(btn => {
                 btn.addEventListener('click', async function() {
                     const time = this.dataset.time;
@@ -1222,7 +1491,7 @@ const app = initializeApp(firebaseConfig);
         }
 
         // ============================================================
-        //  10. АДМИН-СТАТУС
+        //  АДМИН-СТАТУС
         // ============================================================
 
         function showAdminStatus(text, type = 'info') {
@@ -1235,126 +1504,7 @@ const app = initializeApp(firebaseConfig);
         }
 
         // ============================================================
-        //  11. ОТПРАВКА НА ПОЧТУ (FormSpree)
-        // ============================================================
-
-        async function sendToEmail(formData) {
-            const FORM_SPREE_URL = 'https://formspree.io/f/xpznkqrl';
-            
-            const payload = {
-                time: formData.time,
-                childName: formData.childName,
-                class: formData.class,
-                parentName: formData.parentName,
-                phone: formData.phone,
-                _subject: `📩 Новая заявка в "Вольт" на ${formData.time}`
-            };
-
-            try {
-                const response = await fetch(FORM_SPREE_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Ошибка HTTP: ${response.status}`);
-                }
-
-                return { success: true };
-            } catch (error) {
-                console.error('Ошибка отправки email:', error);
-                return { success: false, error: error.message };
-            }
-        }
-
-        // ============================================================
-        //  12. ОБРАБОТКА ФОРМЫ
-        // ============================================================
-
-        const form = document.getElementById('registrationForm');
-        const messageEl = document.getElementById('formMessage');
-        const submitBtn = document.getElementById('submitBtn');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-
-        submitBtn.disabled = true;
-
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            if (!isCaptchaSolved()) {
-                showMessage('❌ Пожалуйста, подтвердите, что вы не робот (решите капчу).', 'error');
-                return;
-            }
-
-            const time = document.getElementById('timeSelect').value;
-            const childName = document.getElementById('childName').value.trim();
-            const classVal = document.getElementById('class').value.trim();
-            const parentName = document.getElementById('parentName').value.trim();
-            const phone = document.getElementById('phone').value.trim();
-
-            if (!time) {
-                showMessage('Пожалуйста, выберите время занятия.', 'error');
-                return;
-            }
-
-            loadingOverlay.classList.add('active');
-            submitBtn.disabled = true;
-
-            try {
-                const registrationData = {
-                    childName,
-                    class: classVal,
-                    parentName,
-                    phone,
-                    timestamp: new Date().toISOString()
-                };
-
-                const updatedData = await addRegistrationToFirebase(time, registrationData);
-
-                const emailResult = await sendToEmail({
-                    time,
-                    childName,
-                    class: classVal,
-                    parentName,
-                    phone
-                });
-
-                if (!emailResult.success) {
-                    console.warn('Email не отправлен, но заявка сохранена в БД:', emailResult.error);
-                    showMessage(`⚠️ Заявка сохранена, но письмо не отправлено. Свяжитесь с администратором.`, 'info');
-                } else {
-                    showMessage(`✅ Заявка на ${time} успешно отправлена!`, 'success');
-                }
-
-                renderSchedule(updatedData);
-                
-                // Обновляем админ-панель, если она открыта
-                if (document.getElementById('adminContent').classList.contains('active')) {
-                    renderAdminPanel(updatedData);
-                }
-
-                form.reset();
-                document.getElementById('timeSelect').value = '';
-                resetCaptcha();
-
-            } catch (error) {
-                console.error('Ошибка:', error);
-                showMessage(`❌ Ошибка: ${error.message || 'попробуйте ещё раз'}`, 'error');
-                resetCaptcha();
-            } finally {
-                loadingOverlay.classList.remove('active');
-                if (!isCaptchaSolved()) {
-                    submitBtn.disabled = true;
-                }
-            }
-        });
-
-        // ============================================================
-        //  13. АДМИН-АВТОРИЗАЦИЯ
+        //  АДМИН-АВТОРИЗАЦИЯ
         // ============================================================
 
         let isAdminLoggedIn = false;
@@ -1396,7 +1546,7 @@ const app = initializeApp(firebaseConfig);
         });
 
         // ============================================================
-        //  14. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+        //  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
         // ============================================================
 
         function showMessage(text, type = 'info') {
@@ -1412,23 +1562,37 @@ const app = initializeApp(firebaseConfig);
         }
 
         // ============================================================
-        //  15. ИНИЦИАЛИЗАЦИЯ
+        //  ИНИЦИАЛИЗАЦИЯ
         // ============================================================
 
         async function init() {
+            diag('🚀 Запуск инициализации сайта...', 'info');
+            
             try {
+                // 1. Загружаем данные из Firebase
                 const data = await getDataFromFirebase();
                 renderSchedule(data);
+                diag('✅ Начальная загрузка завершена', 'ok');
                 
+                // 2. Загружаем reCAPTCHA с проверкой готовности
                 if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
                     loadRecaptcha();
                 } else {
-                    const checkRecaptcha = setInterval(() => {
+                    diag('⏳ Ожидание загрузки reCAPTCHA...', 'warning');
+                    // Проверяем каждые 500 мс
+                    let attempts = 0;
+                    const maxAttempts = 30; // 15 секунд
+                    const waitForRecaptcha = setInterval(() => {
+                        attempts++;
                         if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
-                            clearInterval(checkRecaptcha);
+                            clearInterval(waitForRecaptcha);
+                            diag('✅ reCAPTCHA загрузился, создаём виджет', 'ok');
                             loadRecaptcha();
+                        } else if (attempts >= maxAttempts) {
+                            clearInterval(waitForRecaptcha);
+                            diag('❌ Таймаут загрузки reCAPTCHA', 'error');
                         }
-                    }, 100);
+                    }, 500);
                 }
 
                 console.log('🤖 Клуб "Вольт" — система запущена!');
@@ -1438,15 +1602,17 @@ const app = initializeApp(firebaseConfig);
                 console.log(`🔑 Пароль админа: ${ADMIN_PASSWORD}`);
 
             } catch (error) {
-                console.error('Ошибка инициализации:', error);
+                diag(`❌ Критическая ошибка инициализации: ${error.message}`, 'error');
                 document.getElementById('scheduleGrid').innerHTML = `
                     <div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #f87171;">
-                        ❌ Ошибка подключения к базе данных. Проверьте настройки Firebase.
+                        ❌ Ошибка подключения к базе данных.<br>
+                        <span style="font-size:14px; opacity:0.7;">${error.message}</span>
                     </div>
                 `;
             }
         }
 
+        // Запускаем после загрузки страницы
         document.addEventListener('DOMContentLoaded', init);
     </script>
 
@@ -1454,11 +1620,23 @@ const app = initializeApp(firebaseConfig);
     <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoaded&render=explicit" async defer></script>
     
     <script>
+        // Глобальная функция для уведомления о загрузке reCAPTCHA
         window.onRecaptchaLoaded = function() {
-            console.log('✅ reCAPTCHA загружена');
-            if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
-                if (!recaptchaWidgetId) {
-                    loadRecaptcha();
+            console.log('✅ reCAPTCHA скрипт загружен');
+            // Если виджет ещё не создан, создаём его
+            if (typeof recaptchaWidgetId === 'undefined' || recaptchaWidgetId === null) {
+                if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
+                    // Проверяем, что функция loadRecaptcha существует
+                    if (typeof loadRecaptcha === 'function') {
+                        loadRecaptcha();
+                    } else {
+                        console.warn('Функция loadRecaptcha ещё не определена, повторная попытка через 1с');
+                        setTimeout(() => {
+                            if (typeof loadRecaptcha === 'function') {
+                                loadRecaptcha();
+                            }
+                        }, 1000);
+                    }
                 }
             }
         };
