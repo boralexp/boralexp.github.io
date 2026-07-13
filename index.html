@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Детский научно-технический клуб "Вольт" - Запись на робототехнику</title>
     
-    <!-- ===== Firebase SDK (правильная версия) ===== -->
+    <!-- ===== Firebase SDK ===== -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     
@@ -957,7 +957,7 @@
         //  КОНСТАНТЫ
         // ============================================================
         const GROUP_SIZE = 4;
-        const TIME_SLOTS = ['10:00', '11:00', '15:00', '16:00'];
+        const TIME_SLOTS = ['10:00', '11:00', '14:00', '15:00'];
         const DB_PATH = 'volt_schedule';
         const ADMIN_PASSWORD = 'volt2026';
 
@@ -1076,28 +1076,36 @@
         }
 
         // ============================================================
-        //  reCAPTCHA (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+        //  reCAPTCHA (ИСПРАВЛЕННАЯ ВЕРСИЯ - БЕЗ ПОВТОРНОГО РЕНДЕРИНГА)
         // ============================================================
 
         let recaptchaWidgetId = null;
+        let recaptchaLoaded = false;
 
         function loadRecaptcha() {
+            // Если виджет уже создан - не создаём повторно
+            if (recaptchaWidgetId !== null) {
+                diag('ℹ️ reCAPTCHA уже создана, пропускаем', 'info');
+                return;
+            }
+
             if (!RECAPTCHA_SITE_KEY || RECAPTCHA_SITE_KEY === 'ВАШ_SITE_KEY') {
                 diag('❌ Не заполнен Site Key для reCAPTCHA', 'error');
                 return;
             }
 
-            // Проверяем, что grecaptcha уже загружен
+            // Проверяем, что grecaptcha загружен
             if (typeof grecaptcha === 'undefined' || !grecaptcha.render) {
                 diag('⏳ reCAPTCHA ещё не загружен, ждём...', 'warning');
-                // Попробуем ещё раз через 1 секунду
-                setTimeout(loadRecaptcha, 1000);
+                setTimeout(loadRecaptcha, 500);
                 return;
             }
 
-            diag('🔐 Загрузка reCAPTCHA...', 'info');
+            diag('🔐 Создание reCAPTCHA виджета...', 'info');
             
             const container = document.getElementById('recaptcha-container');
+            
+            // Очищаем контейнер перед созданием
             container.innerHTML = '';
             
             try {
@@ -1112,11 +1120,22 @@
                     'expired-callback': function() {
                         diag('⏳ reCAPTCHA устарела', 'warning');
                         document.getElementById('submitBtn').disabled = true;
+                    },
+                    'error-callback': function() {
+                        diag('❌ Ошибка reCAPTCHA, попробуйте обновить страницу', 'error');
                     }
                 });
-                diag('✅ reCAPTCHA загружена, widget ID: ' + recaptchaWidgetId, 'ok');
+                recaptchaLoaded = true;
+                diag(`✅ reCAPTCHA создана, widget ID: ${recaptchaWidgetId}`, 'ok');
             } catch (error) {
-                diag(`❌ Ошибка reCAPTCHA: ${error.message}`, 'error');
+                diag(`❌ Ошибка создания reCAPTCHA: ${error.message}`, 'error');
+                // Если ошибка "already been rendered", сбрасываем и пробуем ещё раз
+                if (error.message && error.message.includes('already been rendered')) {
+                    diag('🔄 Обнаружен повторный рендеринг, очищаем...', 'warning');
+                    container.innerHTML = '';
+                    recaptchaWidgetId = null;
+                    setTimeout(loadRecaptcha, 1000);
+                }
             }
         }
 
@@ -1575,25 +1594,27 @@
                 diag('✅ Начальная загрузка завершена', 'ok');
                 
                 // 2. Загружаем reCAPTCHA с проверкой готовности
-                if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
-                    loadRecaptcha();
-                } else {
-                    diag('⏳ Ожидание загрузки reCAPTCHA...', 'warning');
-                    // Проверяем каждые 500 мс
-                    let attempts = 0;
-                    const maxAttempts = 30; // 15 секунд
-                    const waitForRecaptcha = setInterval(() => {
-                        attempts++;
-                        if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
-                            clearInterval(waitForRecaptcha);
-                            diag('✅ reCAPTCHA загрузился, создаём виджет', 'ok');
-                            loadRecaptcha();
-                        } else if (attempts >= maxAttempts) {
-                            clearInterval(waitForRecaptcha);
-                            diag('❌ Таймаут загрузки reCAPTCHA', 'error');
-                        }
-                    }, 500);
-                }
+                // Даём небольшую задержку для загрузки скрипта
+                setTimeout(() => {
+                    if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
+                        loadRecaptcha();
+                    } else {
+                        diag('⏳ Ожидание загрузки reCAPTCHA...', 'warning');
+                        let attempts = 0;
+                        const maxAttempts = 30;
+                        const waitForRecaptcha = setInterval(() => {
+                            attempts++;
+                            if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
+                                clearInterval(waitForRecaptcha);
+                                diag('✅ reCAPTCHA загрузился, создаём виджет', 'ok');
+                                loadRecaptcha();
+                            } else if (attempts >= maxAttempts) {
+                                clearInterval(waitForRecaptcha);
+                                diag('❌ Таймаут загрузки reCAPTCHA', 'error');
+                            }
+                        }, 500);
+                    }
+                }, 1000);
 
                 console.log('🤖 Клуб "Вольт" — система запущена!');
                 console.log(`📊 Всего слотов: ${TIME_SLOTS.length}, мест в группе: ${GROUP_SIZE}`);
@@ -1624,18 +1645,10 @@
         window.onRecaptchaLoaded = function() {
             console.log('✅ reCAPTCHA скрипт загружен');
             // Если виджет ещё не создан, создаём его
-            if (typeof recaptchaWidgetId === 'undefined' || recaptchaWidgetId === null) {
+            if (recaptchaWidgetId === null) {
                 if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
-                    // Проверяем, что функция loadRecaptcha существует
                     if (typeof loadRecaptcha === 'function') {
                         loadRecaptcha();
-                    } else {
-                        console.warn('Функция loadRecaptcha ещё не определена, повторная попытка через 1с');
-                        setTimeout(() => {
-                            if (typeof loadRecaptcha === 'function') {
-                                loadRecaptcha();
-                            }
-                        }, 1000);
                     }
                 }
             }
