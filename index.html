@@ -102,12 +102,6 @@
             letter-spacing: 0.5px;
         }
 
-        .address-block .sub {
-            font-size: 16px;
-            opacity: 0.7;
-            margin-top: 4px;
-        }
-
         /* ===== РАСПИСАНИЕ ===== */
         .schedule-title {
             font-size: 24px;
@@ -841,7 +835,7 @@
         <div class="max-group-block">
             <div class="icon">💬</div>
             <div class="content">
-                <div class="label">📱 Присоединяйтесь к группе в Max</div>
+                <div class="label">📱 Присоединяйтесь к группе в MAX</div>
                 <a href="https://max.ru/join/RU-iOrCoxraPZoa3Sucmfw_J5HHpr2U8YTR1W1hLT74" 
                    class="link" 
                    target="_blank" 
@@ -936,7 +930,7 @@
 
     <script>
         // ============================================================
-        //  ⚠️ ВСТАВЬ СВОИ ДАННЫЕ ИЗ FIREBASE ⚠️
+        //  НАСТРОЙКИ FIREBASE
         // ============================================================
         const firebaseConfig = {
             apiKey: "AIzaSyCZcyMqCXoLhxxsrqjpI-SKaLJJBh8FWTs",
@@ -949,7 +943,7 @@
         };
 
         // ============================================================
-        //  ⚠️ ВСТАВЬ СВОЙ SITE KEY ИЗ reCAPTCHA ⚠️
+        //  НАСТРОЙКИ reCAPTCHA
         // ============================================================
         const RECAPTCHA_SITE_KEY = '6LfSplAtAAAAAK-K-0AzbGSshzVnBxjacQajmpwE';
 
@@ -1076,14 +1070,13 @@
         }
 
         // ============================================================
-        //  reCAPTCHA (ИСПРАВЛЕННАЯ ВЕРСИЯ - БЕЗ ПОВТОРНОГО РЕНДЕРИНГА)
+        //  reCAPTCHA
         // ============================================================
 
         let recaptchaWidgetId = null;
         let recaptchaLoaded = false;
 
         function loadRecaptcha() {
-            // Если виджет уже создан - не создаём повторно
             if (recaptchaWidgetId !== null) {
                 diag('ℹ️ reCAPTCHA уже создана, пропускаем', 'info');
                 return;
@@ -1094,7 +1087,6 @@
                 return;
             }
 
-            // Проверяем, что grecaptcha загружен
             if (typeof grecaptcha === 'undefined' || !grecaptcha.render) {
                 diag('⏳ reCAPTCHA ещё не загружен, ждём...', 'warning');
                 setTimeout(loadRecaptcha, 500);
@@ -1104,8 +1096,6 @@
             diag('🔐 Создание reCAPTCHA виджета...', 'info');
             
             const container = document.getElementById('recaptcha-container');
-            
-            // Очищаем контейнер перед созданием
             container.innerHTML = '';
             
             try {
@@ -1129,7 +1119,6 @@
                 diag(`✅ reCAPTCHA создана, widget ID: ${recaptchaWidgetId}`, 'ok');
             } catch (error) {
                 diag(`❌ Ошибка создания reCAPTCHA: ${error.message}`, 'error');
-                // Если ошибка "already been rendered", сбрасываем и пробуем ещё раз
                 if (error.message && error.message.includes('already been rendered')) {
                     diag('🔄 Обнаружен повторный рендеринг, очищаем...', 'warning');
                     container.innerHTML = '';
@@ -1331,7 +1320,6 @@
 
                 diag(`📝 Сохранение заявки на ${time}...`, 'info');
 
-                // Получаем актуальные данные
                 const data = await getDataFromFirebase();
                 const booked = data[time] || [];
                 
@@ -1345,7 +1333,6 @@
 
                 diag(`✅ Заявка сохранена в Firebase на ${time}`, 'ok');
 
-                // Отправляем на почту
                 const emailResult = await sendToEmail({
                     time,
                     childName,
@@ -1588,13 +1575,10 @@
             diag('🚀 Запуск инициализации сайта...', 'info');
             
             try {
-                // 1. Загружаем данные из Firebase
                 const data = await getDataFromFirebase();
                 renderSchedule(data);
                 diag('✅ Начальная загрузка завершена', 'ok');
                 
-                // 2. Загружаем reCAPTCHA с проверкой готовности
-                // Даём небольшую задержку для загрузки скрипта
                 setTimeout(() => {
                     if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
                         loadRecaptcha();
@@ -1633,7 +1617,6 @@
             }
         }
 
-        // Запускаем после загрузки страницы
         document.addEventListener('DOMContentLoaded', init);
     </script>
 
@@ -1641,10 +1624,8 @@
     <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoaded&render=explicit" async defer></script>
     
     <script>
-        // Глобальная функция для уведомления о загрузке reCAPTCHA
         window.onRecaptchaLoaded = function() {
             console.log('✅ reCAPTCHA скрипт загружен');
-            // Если виджет ещё не создан, создаём его
             if (recaptchaWidgetId === null) {
                 if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
                     if (typeof loadRecaptcha === 'function') {
