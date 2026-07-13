@@ -166,18 +166,34 @@
             display: inline-block;
         }
 
-        /* ===== ССЫЛКА НА ГРУППУ MAX ===== */
+        /* ===== ССЫЛКА НА ГРУППУ MAX (СКРЫТА ПО УМОЛЧАНИЮ) ===== */
         .max-group-block {
             background: rgba(0, 200, 255, 0.05);
             border: 2px solid rgba(0, 200, 255, 0.2);
             border-radius: 16px;
             padding: 20px 24px;
             margin: 20px 0 30px 0;
-            display: flex;
+            display: none;
             align-items: center;
             gap: 16px;
             flex-wrap: wrap;
             transition: all 0.3s ease;
+            animation: fadeIn 0.6s ease;
+        }
+
+        .max-group-block.visible {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .max-group-block:hover {
@@ -831,8 +847,8 @@
 
         <div class="duration">⏱ Продолжительность занятий — 1 час</div>
 
-        <!-- ===== ССЫЛКА НА ГРУППУ MAX ===== -->
-        <div class="max-group-block">
+        <!-- ===== ССЫЛКА НА ГРУППУ MAX (СКРЫТА ПО УМОЛЧАНИЮ) ===== -->
+        <div class="max-group-block" id="maxGroupBlock">
             <div class="icon">💬</div>
             <div class="content">
                 <div class="label">📱 Присоединяйтесь к группе в MAX</div>
@@ -1067,6 +1083,15 @@
                 diag(`❌ Ошибка сохранения: ${error.message}`, 'error');
                 throw error;
             }
+        }
+
+        // ============================================================
+        //  ФУНКЦИЯ ПОКАЗА ССЫЛКИ НА ГРУППУ MAX
+        // ============================================================
+        function showMaxGroupLink() {
+            const block = document.getElementById('maxGroupBlock');
+            block.classList.add('visible');
+            diag('✅ Ссылка на группу MAX показана', 'ok');
         }
 
         // ============================================================
@@ -1346,6 +1371,9 @@
                 } else {
                     showMessage(`✅ Заявка на ${time} успешно отправлена!`, 'success');
                 }
+
+                // ===== ПОКАЗЫВАЕМ ССЫЛКУ НА ГРУППУ MAX ПОСЛЕ УСПЕШНОЙ ЗАПИСИ =====
+                showMaxGroupLink();
 
                 renderSchedule(data);
                 
